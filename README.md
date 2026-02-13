@@ -36,9 +36,10 @@ python run.py query-mol --db mmp.duckdb --smiles "CC(=O)Nc1ccc(Cl)cc1" --assay l
 |--------|-------------|
 | `smiles` | molecule SMILES (any notation, canonicalized internally) |
 | `assay_name` | string identifier for the property |
-| `value` | numeric measurement |
+| `value` | numeric measurement, or a string with an embedded qualifier prefix (e.g. `>5.0`) |
+| `qualifier` | *(optional)* qualifier string (e.g. `>`, `<=`) when kept in a separate column alongside a numeric `value` |
 
-Multiple rows per molecule (different assays) are fine. Qualifiers (`>`, `<`) are stripped by default.
+Multiple rows per molecule (different assays) are fine. Qualifier prefixes are handled according to the per-assay `qualifier_handling` setting (`strip` by default). Both input formats are supported: an embedded prefix in the value string (e.g. `">5.0"`) or a separate `qualifier` column with a numeric `value`.
 
 ## Configuration
 
