@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MMP Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-deep: #0c0e1a;
+  --bg: #111326;
+  --surface: rgba(26, 29, 52, 0.85);
+  --surface-solid: #1a1d34;
+  --surface2: rgba(35, 39, 68, 0.7);
+  --surface-hover: rgba(45, 50, 85, 0.6);
+  --border: rgba(80, 88, 140, 0.25);
+  --border-bright: rgba(100, 112, 180, 0.35);
+  --text: #d8daf0;
+  --text-bright: #eef0ff;
+  --text-muted: #6b70a0;
+  --accent: #5b8cf7;
+  --accent-dim: rgba(91, 140, 247, 0.15);
+  --accent-hover: #7ba4ff;
+  --favorable: #34d399;
+  --favorable-dim: rgba(52, 211, 153, 0.12);
+  --unfavorable: #f87171;
+  --unfavorable-dim: rgba(248, 113, 113, 0.12);
+  --mixed: #fbbf24;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --font: 'Manrope', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg-deep);
+  color: var(--text);
+  min-height: 100vh;
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(50, 60, 130, 0.18) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 80% 100%, rgba(40, 30, 90, 0.12) 0%, transparent 60%);
+}
+
+/* ── Header ────────────────────────────────────────────────────────── */
+header {
+  background: var(--surface);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 18px 28px;
+}
+
+header h1 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 14px;
+  color: var(--text-bright);
+  letter-spacing: -0.02em;
+}
+
+header h1 span {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.input-bar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.input-bar select,
+.input-bar input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 9px 14px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-family: var(--font);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+
+.input-bar select:focus,
+.input-bar input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+.input-bar select { min-width: 180px; }
+
+.input-bar input {
+  flex: 1;
+  min-width: 280px;
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.01em;
+}
+
+.input-bar button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 9px 24px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-family: var(--font);
+  cursor: pointer;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+}
+
+.input-bar button:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 4px 16px rgba(91, 140, 247, 0.25);
+}
+
+.input-bar button:active { transform: scale(0.97); }
+.input-bar button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* ── Assay config ──────────────────────────────────────────────────── */
+#assay-config {
+  background: var(--surface);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 28px;
+  display: none;
+}
+
+#assay-config h3 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.assay-rows { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.assay-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--surface2);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  border: 1px solid transparent;
+  transition: border-color 0.15s;
+}
+
+.assay-row:hover { border-color: var(--border); }
+.assay-row label { cursor: pointer; user-select: none; font-weight: 500; }
+
+.assay-row input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+}
+
+.direction-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-left: 2px;
+}
+
+.direction-toggle button {
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  padding: 3px 9px;
+  font-size: 10.5px;
+  font-family: var(--font);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  letter-spacing: 0.03em;
+}
+
+.direction-toggle button.active-increase {
+  background: var(--favorable);
+  color: #fff;
+}
+
+.direction-toggle button.active-decrease {
+  background: var(--unfavorable);
+  color: #fff;
+}
+
+/* ── Main content ──────────────────────────────────────────────────── */
+main {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 28px;
+}
+
+#status {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 48px 20px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+#molecule-panel {
+  display: none;
+  text-align: center;
+}
+
+/* ── SVG render window ─────────────────────────────────────────────── */
+.svg-container {
+  position: relative;
+  display: inline-block;
+  max-width: 600px;
+  margin: 0 auto;
+  background: linear-gradient(135deg, rgba(18, 22, 42, 0.95), rgba(14, 17, 35, 0.95));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    0 0 1px rgba(80, 90, 160, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.svg-container svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.summary-bar {
+  margin-top: 14px;
+  padding: 10px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 12.5px;
+  color: var(--text-muted);
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.summary-bar code {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+  background: var(--surface2);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.summary-bar span { font-weight: 500; }
+
+/* ── Vector circles ────────────────────────────────────────────────── */
+.vector-marker { cursor: pointer; }
+.vector-marker:hover { opacity: 0.85; }
+
+/* ── Modal ─────────────────────────────────────────────────────────── */
+.modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 6, 14, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 100;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 48px 16px;
+  overflow-y: auto;
+}
+
+.modal-backdrop.open {
+  display: flex;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.modal {
+  background: var(--surface-solid);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-lg);
+  max-width: 920px;
+  width: 100%;
+  max-height: calc(100vh - 96px);
+  display: flex;
+  flex-direction: column;
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.5),
+    0 0 1px rgba(100, 112, 180, 0.3);
+  animation: slideUp 0.2s ease-out;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-header h2 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-bright);
+  letter-spacing: -0.01em;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.modal-close:hover {
+  color: var(--text);
+  background: var(--surface2);
+}
+
+.modal-body {
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+/* ── Proposals table ───────────────────────────────────────────────── */
+.proposals-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.proposals-table th {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-bright);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s;
+}
+
+.proposals-table th:hover { color: var(--text); }
+
+.proposals-table th .sort-arrow {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 9px;
+  opacity: 0;
+  transition: opacity 0.15s, transform 0.15s;
+  vertical-align: middle;
+}
+
+.proposals-table th:hover .sort-arrow { opacity: 0.4; }
+.proposals-table th.sort-active { color: var(--text-bright); }
+.proposals-table th.sort-active .sort-arrow { opacity: 1; }
+.proposals-table th.sort-desc .sort-arrow { transform: rotate(180deg); }
+
+.proposals-table td {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.proposals-table tr { transition: background 0.1s; }
+.proposals-table tr:hover td { background: var(--surface-hover); }
+
+.delta-cell {
+  font-weight: 600;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.delta-favorable { color: var(--favorable); }
+.delta-unfavorable { color: var(--unfavorable); }
+
+.replacement-thumb {
+  width: 100px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 10px;
+  background: rgba(15, 18, 35, 0.5);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.replacement-thumb svg { width: 100%; height: 100%; }
+
+.score-cell {
+  font-weight: 700;
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+
+.score-positive { color: var(--favorable); }
+.score-negative { color: var(--unfavorable); }
+.score-neutral { color: var(--text-muted); }
+
+.smi-cell {
+  font-family: var(--mono);
+  font-size: 12px;
+  word-break: break-all;
+  max-width: 140px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.confidence-label {
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 400;
+}
+
+.delta-iqr {
+  display: block;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 400;
+  font-family: var(--mono);
+  margin-top: 1px;
+}
+
+/* ── Loading spinner ───────────────────────────────────────────────── */
+.spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Responsive ────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .modal { max-width: 100%; border-radius: var(--radius); }
+  .input-bar { flex-direction: column; }
+  .input-bar select, .input-bar input { min-width: 100%; }
+  main { padding: 14px; }
+  header { padding: 14px 16px; }
+  #assay-config { padding: 10px 16px; }
+}
+
+/* ── Cart checkbox in table ───────────────────────────────────────── */
+.proposals-table th.cart-col,
+.proposals-table td.cart-col {
+  width: 36px;
+  text-align: center;
+  padding-left: 10px;
+  padding-right: 4px;
+}
+
+.proposals-table td.cart-col input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+/* Greyed-out style for items already in cart */
+.proposals-table td.cart-col input[type="checkbox"][data-in-cart="true"] {
+  accent-color: var(--text-muted);
+  opacity: 0.6;
+}
+
+/* ── Modal footer ─────────────────────────────────────────────────── */
+.modal-footer {
+  padding: 12px 22px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.modal-footer-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  flex: 1;
+}
+
+.btn-update-cart {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: var(--font);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.btn-update-cart:hover { background: var(--accent-hover); }
+.btn-update-cart:active { transform: scale(0.97); }
+.btn-update-cart:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* ── Cart badge ───────────────────────────────────────────────────── */
+#cart-badge {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 90;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 28px;
+  font-size: 13.5px;
+  font-family: var(--font);
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(91, 140, 247, 0.35);
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s, opacity 0.2s;
+  display: none;
+}
+
+#cart-badge:hover {
+  background: var(--accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 28px rgba(91, 140, 247, 0.45);
+}
+
+#cart-badge:active { transform: scale(0.96); }
+
+/* ── Cart panel ───────────────────────────────────────────────────── */
+.cart-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 6, 14, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 200;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 48px 16px;
+  overflow-y: auto;
+}
+
+.cart-backdrop.open {
+  display: flex;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.cart-panel {
+  background: var(--surface-solid);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-lg);
+  max-width: 860px;
+  width: 100%;
+  max-height: calc(100vh - 96px);
+  display: flex;
+  flex-direction: column;
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.5),
+    0 0 1px rgba(100, 112, 180, 0.3);
+  animation: slideUp 0.2s ease-out;
+}
+
+.cart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.cart-header h2 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-bright);
+  letter-spacing: -0.01em;
+}
+
+.cart-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.cart-actions button {
+  padding: 7px 16px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-family: var(--font);
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: background 0.15s, color 0.15s;
+}
+
+.cart-download {
+  background: var(--accent);
+  color: #fff;
+}
+
+.cart-download:hover { background: var(--accent-hover); }
+
+.cart-clear {
+  background: var(--surface2);
+  color: var(--text-muted);
+  border: 1px solid var(--border) !important;
+}
+
+.cart-clear:hover {
+  color: var(--unfavorable);
+  border-color: var(--unfavorable) !important;
+}
+
+.cart-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.cart-close:hover {
+  color: var(--text);
+  background: var(--surface2);
+}
+
+.cart-body {
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.cart-empty {
+  color: var(--text-muted);
+  padding: 32px 20px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.cart-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.cart-table th {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-bright);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.cart-table td {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.cart-table tr { transition: background 0.1s; }
+.cart-table tr:hover td { background: var(--surface-hover); }
+
+.cart-table .smi-cell {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  word-break: break-all;
+  max-width: 200px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.cart-remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.cart-remove:hover {
+  color: var(--unfavorable);
+  background: var(--unfavorable-dim);
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>MMP <span>Explorer</span></h1>
+  <div class="input-bar">
+    <select id="db-select"><option value="">Select database...</option></select>
+    <input id="smiles-input" type="text" placeholder="Enter SMILES — e.g. CC(=O)Nc1ccc(F)cc1" spellcheck="false" />
+    <button id="analyze-btn" disabled>Analyze</button>
+  </div>
+</header>
+
+<div id="assay-config">
+  <h3>Assays &amp; direction</h3>
+  <div class="assay-rows" id="assay-rows"></div>
+</div>
+
+<main>
+  <div id="status">Select a database and enter a SMILES to begin.</div>
+  <div id="molecule-panel">
+    <div class="svg-container" id="svg-container"></div>
+    <div class="summary-bar" id="summary-bar"></div>
+  </div>
+</main>
+
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Modifications</h2>
+      <button class="modal-close" id="modal-close">&times;</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer" style="display:none"></div>
+  </div>
+</div>
+
+<button id="cart-badge">Cart (0)</button>
+
+<div class="cart-backdrop" id="cart-backdrop">
+  <div class="cart-panel">
+    <div class="cart-header">
+      <h2 id="cart-title">Cart</h2>
+      <div class="cart-actions">
+        <button class="cart-download" id="cart-download">Download CSV</button>
+        <button class="cart-clear" id="cart-clear">Clear</button>
+        <button class="cart-close" id="cart-close">&times;</button>
+      </div>
+    </div>
+    <div class="cart-body" id="cart-body"></div>
+  </div>
+</div>
+
+<script>
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
+
+// ── State ───────────────────────────────────────────────────────────
+let databases = [];
+let currentAssays = [];
+let queryResult = null;
+const svgCache = {};
+const cart = new Map(); // keyed by product_smiles
+
+// ── Init ────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    const resp = await fetch('/api/databases');
+    databases = await resp.json();
+    const sel = $('#db-select');
+    databases.forEach(db => {
+      const opt = document.createElement('option');
+      opt.value = db.name;
+      opt.textContent = db.name;
+      sel.appendChild(opt);
+    });
+  } catch (e) {
+    showStatus('Failed to load databases: ' + e.message);
+  }
+}
+
+$('#db-select').addEventListener('change', (e) => {
+  const dbName = e.target.value;
+  const db = databases.find(d => d.name === dbName);
+  if (!db) {
+    $('#assay-config').style.display = 'none';
+    $('#analyze-btn').disabled = true;
+    return;
+  }
+  currentAssays = db.assays;
+  renderAssayConfig(db.assays);
+  updateAnalyzeBtn();
+});
+
+$('#smiles-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') $('#analyze-btn').click();
+});
+
+$('#smiles-input').addEventListener('input', updateAnalyzeBtn);
+
+$('#analyze-btn').addEventListener('click', runQuery);
+
+$('#modal-close').addEventListener('click', closeModal);
+$('#modal-backdrop').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeModal();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if ($('#cart-backdrop').classList.contains('open')) closeCartPanel();
+    else closeModal();
+  }
+});
+
+$('#cart-badge').addEventListener('click', openCartPanel);
+$('#cart-close').addEventListener('click', closeCartPanel);
+$('#cart-backdrop').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeCartPanel();
+});
+$('#cart-download').addEventListener('click', downloadCartCsv);
+$('#cart-clear').addEventListener('click', clearCart);
+
+function updateAnalyzeBtn() {
+  const hasDb = !!$('#db-select').value;
+  const hasSmi = !!$('#smiles-input').value.trim();
+  $('#analyze-btn').disabled = !(hasDb && hasSmi);
+}
+
+// ── Assay config ────────────────────────────────────────────────────
+function renderAssayConfig(assays) {
+  const container = $('#assay-rows');
+  container.innerHTML = '';
+  assays.forEach(name => {
+    const row = document.createElement('div');
+    row.className = 'assay-row';
+    row.innerHTML = `
+      <input type="checkbox" id="assay-${name}" checked data-assay="${name}" />
+      <label for="assay-${name}">${name}</label>
+      <div class="direction-toggle">
+        <button class="dir-btn active-increase" data-assay="${name}" data-dir="increase">UP</button>
+        <button class="dir-btn" data-assay="${name}" data-dir="decrease">DOWN</button>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+
+  container.querySelectorAll('.dir-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const dir = e.target.dataset.dir;
+      const toggle = e.target.parentElement;
+      toggle.querySelectorAll('button').forEach(b => {
+        b.className = 'dir-btn';
+      });
+      e.target.className = dir === 'increase' ? 'dir-btn active-increase' : 'dir-btn active-decrease';
+    });
+  });
+
+  $('#assay-config').style.display = 'block';
+}
+
+function getSelectedAssays() {
+  const assays = [];
+  $$('#assay-rows .assay-row').forEach(row => {
+    const cb = row.querySelector('input[type="checkbox"]');
+    if (!cb.checked) return;
+    const name = cb.dataset.assay;
+    const activeBtn = row.querySelector('.dir-btn[class*="active-"]');
+    const direction = activeBtn ? activeBtn.dataset.dir : 'increase';
+    assays.push({ name, direction });
+  });
+  return assays;
+}
+
+// ── Query ───────────────────────────────────────────────────────────
+async function runQuery() {
+  const dbPath = $('#db-select').value;
+  const smiles = $('#smiles-input').value.trim();
+  const assays = getSelectedAssays();
+
+  if (!dbPath || !smiles) return;
+  if (assays.length === 0) {
+    showStatus('Select at least one assay.');
+    return;
+  }
+
+  showStatus('<span class="spinner"></span> Analyzing molecule...');
+  $('#molecule-panel').style.display = 'none';
+  $('#analyze-btn').disabled = true;
+
+  try {
+    const resp = await fetch('/api/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ db_path: dbPath, smiles, assays }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.detail || resp.statusText);
+    }
+
+    queryResult = await resp.json();
+    renderMolecule(queryResult);
+  } catch (e) {
+    showStatus('Error: ' + e.message);
+  } finally {
+    updateAnalyzeBtn();
+  }
+}
+
+// ── Render molecule panel ───────────────────────────────────────────
+function renderMolecule(data) {
+  if (!data.molecule_svg) {
+    showStatus('No SVG generated for this molecule.');
+    return;
+  }
+
+  const container = $('#svg-container');
+  container.innerHTML = data.molecule_svg;
+
+  const svgEl = container.querySelector('svg');
+  if (!svgEl) {
+    showStatus('Invalid SVG response.');
+    return;
+  }
+
+  svgEl.style.overflow = 'visible';
+
+  // Add vector markers
+  const vectors = data.vectors || [];
+  vectors.forEach(v => {
+    const proposals = data.proposals_by_vector[v.vector_id] || [];
+    const marker = createVectorMarker(v, proposals);
+    svgEl.appendChild(marker);
+  });
+
+  // Summary bar
+  const totalProposals = vectors.reduce((s, v) => s + v.num_proposals, 0);
+  $('#summary-bar').innerHTML =
+    `<span>SMILES: <code>${data.canonical_smiles}</code></span>` +
+    `<span>Vectors: ${vectors.length}</span>` +
+    `<span>Proposals: ${totalProposals}</span>`;
+
+  $('#status').style.display = 'none';
+  $('#molecule-panel').style.display = 'block';
+}
+
+function createVectorMarker(vector, proposals) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const x = vector.draw_coords.x;
+  const y = vector.draw_coords.y;
+  const numProposals = proposals.length;
+
+  // Determine color based on favorability
+  let markerColor = '#6b70a0';
+  if (numProposals > 0) {
+    const favCount = proposals.filter(p =>
+      p.assay_deltas.every(d => d.is_favorable)
+    ).length;
+    const unfavCount = proposals.filter(p =>
+      p.assay_deltas.every(d => !d.is_favorable)
+    ).length;
+    if (favCount > numProposals / 2) markerColor = '#34d399';
+    else if (unfavCount > numProposals / 2) markerColor = '#f87171';
+    else markerColor = '#fbbf24';
+  }
+
+  const g = document.createElementNS(NS, 'g');
+  g.setAttribute('class', 'vector-marker');
+  g.style.cursor = 'pointer';
+
+  // Outer glow
+  const glow = document.createElementNS(NS, 'circle');
+  glow.setAttribute('cx', x);
+  glow.setAttribute('cy', y);
+  glow.setAttribute('r', 14);
+  glow.setAttribute('fill', markerColor);
+  glow.setAttribute('opacity', '0.15');
+  g.appendChild(glow);
+
+  const circle = document.createElementNS(NS, 'circle');
+  circle.setAttribute('cx', x);
+  circle.setAttribute('cy', y);
+  circle.setAttribute('r', 11);
+  circle.setAttribute('fill', 'rgba(12, 14, 26, 0.9)');
+  circle.setAttribute('stroke', markerColor);
+  circle.setAttribute('stroke-width', '2');
+  g.appendChild(circle);
+
+  const label = document.createElementNS(NS, 'text');
+  label.setAttribute('x', x);
+  label.setAttribute('y', y + 4);
+  label.setAttribute('text-anchor', 'middle');
+  label.setAttribute('font-size', '10');
+  label.setAttribute('fill', '#fff');
+  label.setAttribute('font-weight', 'bold');
+  label.setAttribute('font-family', 'Manrope, sans-serif');
+  label.setAttribute('pointer-events', 'none');
+  label.textContent = numProposals;
+  g.appendChild(label);
+
+  g.addEventListener('click', () => openModal(vector, proposals));
+
+  return g;
+}
+
+// ── Modal ───────────────────────────────────────────────────────────
+function openModal(vector, proposals) {
+  const bondLabel = vector.atom_symbols
+    ? vector.atom_symbols.filter((_, i) => i % 2 === 0)
+        .map((s, i) => `${s}\u2013${vector.atom_symbols[i * 2 + 1]}`)
+        .join(', ')
+    : vector.vector_id;
+
+  $('#modal-title').textContent = `Modifications at ${bondLabel} bond`;
+
+  if (proposals.length === 0) {
+    $('#modal-body').innerHTML = '<p style="color:var(--text-muted);padding:20px;">No proposals found for this vector.</p>';
+    $('#modal-footer').style.display = 'none';
+  } else {
+    renderProposalsTable(proposals);
+  }
+
+  $('#modal-backdrop').classList.add('open');
+}
+
+function closeModal() {
+  $('#modal-backdrop').classList.remove('open');
+}
+
+function renderProposalsTable(proposals) {
+  const assayNames = [];
+  if (proposals.length > 0) {
+    proposals[0].assay_deltas.forEach(d => {
+      if (!assayNames.includes(d.assay_name)) assayNames.push(d.assay_name);
+    });
+  }
+
+  const sortArrow = '<span class="sort-arrow">\u25B2</span>';
+  let html = '<table class="proposals-table"><thead><tr>';
+  html += '<th class="cart-col"></th>';
+  html += `<th data-sort="replacement">Replacement${sortArrow}</th>`;
+  html += '<th>Structure</th>';
+  assayNames.forEach(name => {
+    html += `<th data-sort="${name}">${name}${sortArrow}<br><span style="font-size:9px;font-weight:400;text-transform:none;letter-spacing:0;opacity:0.6">mean [Q1, Q3]</span></th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  proposals.forEach((p, idx) => {
+    const inCart = cart.has(p.product_smiles);
+    html += `<tr data-pidx="${idx}">`;
+    html += `<td class="cart-col"><input type="checkbox" class="cart-cb" data-product="${escapeAttr(p.product_smiles)}" data-in-cart="${inCart}" ${inCart ? 'checked' : ''} /></td>`;
+    html += `<td class="smi-cell">${escapeHtml(p.replacement)}</td>`;
+    html += `<td><div class="replacement-thumb" data-smiles="${escapeAttr(p.replacement)}" id="thumb-${idx}"></div></td>`;
+
+    assayNames.forEach(name => {
+      const ad = p.assay_deltas.find(d => d.assay_name === name);
+      if (ad) {
+        const arrow = ad.predicted_delta >= 0 ? '\u2191' : '\u2193';
+        const cls = ad.is_favorable ? 'delta-favorable' : 'delta-unfavorable';
+        const delta = ad.predicted_delta > 0 ? `+${ad.predicted_delta.toFixed(3)}` : ad.predicted_delta.toFixed(3);
+        const iqr = ad.confidence >= 2 && ad.min_delta !== ad.max_delta
+          ? `<span class="delta-iqr">[${ad.q1_delta.toFixed(2)}, ${ad.q3_delta.toFixed(2)}]</span>`
+          : '';
+        html += `<td class="delta-cell ${cls}">${arrow} ${delta} <span class="confidence-label">n=${ad.confidence}</span>${iqr}</td>`;
+      } else {
+        html += `<td class="delta-cell" style="color:var(--text-muted)">—</td>`;
+      }
+    });
+
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  $('#modal-body').innerHTML = html;
+
+  // Lazy-load replacement SVGs
+  $$('.replacement-thumb[data-smiles]').forEach(el => {
+    loadReplacementSvg(el, el.dataset.smiles);
+  });
+
+  // Sortable columns
+  $$('.proposals-table th[data-sort]').forEach(th => {
+    th.addEventListener('click', () => {
+      sortTable(th, proposals, assayNames);
+    });
+  });
+
+  // Populate modal footer with update button
+  const footer = $('#modal-footer');
+  footer.style.display = '';
+  footer.innerHTML = `
+    <span class="modal-footer-hint">Greyed checkmarks = already in cart. Uncheck to remove on update.</span>
+    <button class="btn-update-cart" id="modal-update-cart">Update cart with selection</button>
+  `;
+  $('#modal-update-cart').addEventListener('click', () => updateCartFromModal(proposals));
+}
+
+async function loadReplacementSvg(el, smiles) {
+  if (!smiles) { el.textContent = '—'; return; }
+  if (svgCache[smiles]) { el.innerHTML = svgCache[smiles]; return; }
+
+  try {
+    const resp = await fetch('/api/render_molecule', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ smiles, width: 150, height: 110 }),
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      svgCache[smiles] = data.svg;
+      el.innerHTML = data.svg;
+    } else {
+      el.textContent = smiles;
+      el.style.fontFamily = 'var(--mono)';
+      el.style.fontSize = '10px';
+    }
+  } catch {
+    el.textContent = smiles;
+    el.style.fontFamily = 'var(--mono)';
+    el.style.fontSize = '10px';
+  }
+}
+
+function sortTable(th, proposals, assayNames) {
+  const key = th.dataset.sort;
+  const tbody = th.closest('table').querySelector('tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+
+  // Toggle direction: first click = desc, second = asc, etc.
+  const wasAsc = th.dataset.sortDir === 'asc';
+  const newDir = wasAsc ? 'desc' : 'asc';
+  th.dataset.sortDir = newDir;
+
+  // Clear other headers, apply active state
+  th.closest('tr').querySelectorAll('th').forEach(h => {
+    if (h !== th) {
+      delete h.dataset.sortDir;
+      h.classList.remove('sort-active', 'sort-desc');
+    }
+  });
+  th.classList.add('sort-active');
+  th.classList.toggle('sort-desc', newDir === 'desc');
+
+  const asc = newDir === 'asc';
+  // Map each DOM row back to its original proposal via data-pidx
+  const items = rows.map(row => ({
+    p: proposals[parseInt(row.dataset.pidx)],
+    row,
+  }));
+  items.sort((a, b) => {
+    let va, vb;
+    if (key === 'replacement') {
+      va = a.p.replacement; vb = b.p.replacement;
+      return asc ? va.localeCompare(vb) : vb.localeCompare(va);
+    } else if (key === 'net_score') {
+      va = a.p.net_score; vb = b.p.net_score;
+    } else {
+      const da = a.p.assay_deltas.find(d => d.assay_name === key);
+      const db2 = b.p.assay_deltas.find(d => d.assay_name === key);
+      va = da ? da.predicted_delta : -Infinity;
+      vb = db2 ? db2.predicted_delta : -Infinity;
+    }
+    return asc ? va - vb : vb - va;
+  });
+
+  items.forEach(s => tbody.appendChild(s.row));
+}
+
+function updateCartFromModal(proposals) {
+  $$('.proposals-table .cart-cb').forEach(cb => {
+    const productSmiles = cb.dataset.product;
+    const pidx = parseInt(cb.closest('tr').dataset.pidx);
+    const p = proposals[pidx];
+    if (cb.checked) {
+      cart.set(productSmiles, {
+        product_smiles: p.product_smiles,
+        replacement: p.replacement,
+        constant_context: p.constant_context || '',
+        assay_deltas: p.assay_deltas,
+        query_smiles: queryResult ? queryResult.canonical_smiles : '',
+      });
+      cb.dataset.inCart = 'true';
+    } else {
+      cart.delete(productSmiles);
+      cb.dataset.inCart = 'false';
+    }
+  });
+  updateCartBadge();
+  closeModal();
+}
+
+// ── Cart ─────────────────────────────────────────────────────────
+function updateCartBadge() {
+  const badge = $('#cart-badge');
+  const count = cart.size;
+  badge.textContent = `Cart (${count})`;
+  badge.style.display = count > 0 ? 'block' : 'none';
+}
+
+function openCartPanel() {
+  renderCartPanel();
+  $('#cart-backdrop').classList.add('open');
+}
+
+function closeCartPanel() {
+  $('#cart-backdrop').classList.remove('open');
+}
+
+function renderCartPanel() {
+  const body = $('#cart-body');
+  const count = cart.size;
+  $('#cart-title').textContent = `Cart (${count} item${count !== 1 ? 's' : ''})`;
+
+  if (count === 0) {
+    body.innerHTML = '<p class="cart-empty">Your cart is empty. Check proposals in the vector modals to add them.</p>';
+    return;
+  }
+
+  let html = '<table class="cart-table"><thead><tr>';
+  html += '<th></th><th>Product SMILES</th><th>Replacement</th><th>Assay Deltas</th>';
+  html += '</tr></thead><tbody>';
+
+  for (const [productSmiles, item] of cart) {
+    const deltaSummary = item.assay_deltas.map(d => {
+      const sign = d.predicted_delta >= 0 ? '+' : '';
+      return `${d.assay_name}: ${sign}${d.predicted_delta.toFixed(3)}`;
+    }).join('; ');
+
+    html += '<tr>';
+    html += `<td><button class="cart-remove" data-product="${escapeAttr(productSmiles)}" title="Remove">&times;</button></td>`;
+    html += `<td class="smi-cell">${escapeHtml(productSmiles)}</td>`;
+    html += `<td class="smi-cell">${escapeHtml(item.replacement)}</td>`;
+    html += `<td style="font-size:12px;color:var(--text-muted)">${escapeHtml(deltaSummary)}</td>`;
+    html += '</tr>';
+  }
+
+  html += '</tbody></table>';
+  body.innerHTML = html;
+
+  // Remove buttons
+  body.querySelectorAll('.cart-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      cart.delete(btn.dataset.product);
+      updateCartBadge();
+      renderCartPanel();
+      // Update any visible checkboxes in the proposals table
+      syncProposalCheckboxes();
+    });
+  });
+}
+
+function syncProposalCheckboxes() {
+  $$('.proposals-table .cart-cb').forEach(cb => {
+    cb.checked = cart.has(cb.dataset.product);
+  });
+}
+
+function clearCart() {
+  cart.clear();
+  updateCartBadge();
+  renderCartPanel();
+  syncProposalCheckboxes();
+}
+
+function downloadCartCsv() {
+  if (cart.size === 0) return;
+
+  const headers = ['product_smiles', 'query_smiles', 'replacement', 'constant_context', 'assay_name', 'predicted_delta', 'confidence', 'q1_delta', 'q3_delta'];
+  const rows = [headers.join(',')];
+
+  for (const [, item] of cart) {
+    for (const d of item.assay_deltas) {
+      const row = [
+        csvField(item.product_smiles),
+        csvField(item.query_smiles),
+        csvField(item.replacement),
+        csvField(item.constant_context),
+        csvField(d.assay_name),
+        d.predicted_delta,
+        d.confidence,
+        d.q1_delta != null ? d.q1_delta : '',
+        d.q3_delta != null ? d.q3_delta : '',
+      ];
+      rows.push(row.join(','));
+    }
+  }
+
+  const csvContent = rows.join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'mmp_cart.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function csvField(value) {
+  const s = String(value ?? '');
+  if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────
+function showStatus(msg) {
+  $('#status').innerHTML = msg;
+  $('#status').style.display = 'block';
+  $('#molecule-panel').style.display = 'none';
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function escapeAttr(s) {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ── Boot ────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
