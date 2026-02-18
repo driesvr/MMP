@@ -1060,12 +1060,8 @@ function closeModal() {
 }
 
 function renderProposalsTable(proposals) {
-  const assayNames = [];
-  if (proposals.length > 0) {
-    proposals[0].assay_deltas.forEach(d => {
-      if (!assayNames.includes(d.assay_name)) assayNames.push(d.assay_name);
-    });
-  }
+  // Use globally selected assays so every vector shows the same columns
+  const assayNames = getSelectedAssays().map(a => a.name);
 
   const sortArrow = '<span class="sort-arrow">\u25B2</span>';
   let html = '<table class="proposals-table"><thead><tr>';
@@ -1189,9 +1185,13 @@ function sortTable(th, proposals, assayNames) {
     } else {
       const da = a.p.assay_deltas.find(d => d.assay_name === key);
       const db2 = b.p.assay_deltas.find(d => d.assay_name === key);
-      va = da ? da.predicted_delta : -Infinity;
-      vb = db2 ? db2.predicted_delta : -Infinity;
+      va = da ? da.predicted_delta : null;
+      vb = db2 ? db2.predicted_delta : null;
     }
+    // Always sort missing values (null / "-") to the bottom
+    if (va === null && vb === null) return 0;
+    if (va === null) return 1;
+    if (vb === null) return -1;
     return asc ? va - vb : vb - va;
   });
 
