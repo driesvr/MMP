@@ -188,8 +188,13 @@ def fragment_molecules(
     mol_ids = unique["mol_id"].to_list()
     smiles_list = unique["canonical_smiles"].to_list()
 
+    from tqdm import tqdm
+
     filtered: list[tuple[int, str]] = []
-    for mid, smi in zip(mol_ids, smiles_list):
+    for mid, smi in tqdm(
+        zip(mol_ids, smiles_list), total=len(mol_ids),
+        desc="Pre-filtering", unit="mol", leave=False,
+    ):
         mol = Chem.MolFromSmiles(smi) if smi else None
         if mol is None:
             logger.warning("Pre-filter: invalid SMILES for mol_id %d", mid)
@@ -208,6 +213,8 @@ def fragment_molecules(
 
     all_records: list[dict] = []
 
+    pbar = tqdm(total=len(chunks), desc="Fragmenting", unit="batch", leave=False)
+
     if n_workers == 1 or len(chunks) == 1:
         for chunk in chunks:
             recs = _fragment_batch(
@@ -217,6 +224,7 @@ def fragment_molecules(
                 gcfg.variable_to_constant_ratio,
             )
             all_records.extend(recs)
+            pbar.update(1)
     else:
         with ProcessPoolExecutor(max_workers=n_workers) as pool:
             futures = {
@@ -234,6 +242,9 @@ def fragment_molecules(
                     all_records.extend(fut.result())
                 except Exception as exc:
                     logger.error("Fragment batch %d failed: %s", futures[fut], exc)
+                pbar.update(1)
+
+    pbar.close()
 
     if not all_records:
         return pl.DataFrame(schema=FRAGMENT_SCHEMA)

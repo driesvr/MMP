@@ -75,16 +75,37 @@ def _remove_outliers_zscore(df: pl.DataFrame) -> pl.DataFrame:
 
 # ── SMILES canonicalization ──────────────────────────────────────────────────
 
-def canonicalize_smiles_column(df: pl.DataFrame, smiles_col: str = "smiles") -> pl.DataFrame:
-    """Re-canonicalize SMILES via RDKit; drop invalid rows."""
+def canonicalize_smiles_column(
+    df: pl.DataFrame,
+    smiles_col: str = "smiles",
+    standardize: bool = True,
+) -> pl.DataFrame:
+    """Standardize and re-canonicalize SMILES via RDKit; drop invalid rows.
+
+    When *standardize* is True the full MMS-style pipeline is applied
+    (salt stripping, charge neutralization, tautomer canonicalization, etc.).
+    """
     from rdkit import Chem
+
+    if standardize:
+        from mmp.standardization import standardize_mol
 
     canonical = []
     valid_mask = []
-    for smi in df[smiles_col].to_list():
+    smiles_list = df[smiles_col].to_list()
+
+    from tqdm import tqdm
+    for smi in tqdm(smiles_list, desc="Standardizing", unit="mol", leave=False):
         mol = Chem.MolFromSmiles(smi) if isinstance(smi, str) else None
         if mol is None:
             logger.warning("Invalid SMILES dropped: %r", smi)
+            valid_mask.append(False)
+            canonical.append(None)
+            continue
+        if standardize:
+            mol = standardize_mol(mol)
+        if mol is None:
+            logger.warning("Standardization failed, SMILES dropped: %r", smi)
             valid_mask.append(False)
             canonical.append(None)
         else:

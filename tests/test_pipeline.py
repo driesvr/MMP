@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from mmp.config import load_config, get_assay_config, Config, AssayConfig
 from mmp.preprocessing import preprocess, canonicalize_smiles_column
+from mmp.standardization import standardize_smiles, standardize_mol
 from mmp.fragmentation import fragment_molecules
 from mmp.indexing import generate_pairs
 from mmp.statistics import (
@@ -203,6 +204,129 @@ class TestPreprocessing:
         result = canonicalize_smiles_column(df)
         # Both should canonicalize to the same SMILES
         assert result["smiles"][0] == result["smiles"][1]
+
+
+# ── Standardization tests ─────────────────────────────────────────────────────
+
+class TestStandardization:
+    """Tests for mmp.standardization — covers each step of the MMS pipeline."""
+
+    # ── standardize_smiles ──────────────────────────────────────────────────
+
+    def test_returns_string_for_valid_input(self):
+        result = standardize_smiles("c1ccccc1")
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+    def test_returns_none_for_invalid_smiles(self):
+        assert standardize_smiles("NOT_A_SMILES") is None
+
+    def test_returns_none_for_empty_string(self):
+        assert standardize_smiles("") is None
+
+    # ── Salt stripping (FragmentParent) ─────────────────────────────────────
+
+    def test_salt_stripped_carboxylate(self):
+        # Sodium acetate → acetic acid (largest organic fragment)
+        result = standardize_smiles("CC(=O)[O-].[Na+]")
+        assert result == standardize_smiles("CC(=O)O")
+
+    def test_salt_stripped_hcl(self):
+        # Amine hydrochloride → free amine
+        result = standardize_smiles("NCCC.[Cl-]")
+        from rdkit import Chem
+        mol = Chem.MolFromSmiles(result)
+        # Chlorine should be gone
+        assert all(a.GetAtomicNum() != 17 for a in mol.GetAtoms())
+
+    def test_multi_fragment_keeps_largest(self):
+        # Molecule + small counter-fragment: keep the bigger piece
+        result = standardize_smiles("c1ccccc1CC(=O)O.O")  # benylacetic acid + water
+        assert result is not None
+        from rdkit import Chem
+        mol = Chem.MolFromSmiles(result)
+        # Water (1 heavy atom) should not survive
+        assert mol.GetNumHeavyAtoms() > 1
+
+    # ── Charge neutralization (Uncharger) ───────────────────────────────────
+
+    def test_zwitterion_neutralized(self):
+        # Glycine zwitterion → neutral form
+        zwitterion = "[NH3+]CC(=O)[O-]"
+        neutral = "NCC(=O)O"
+        result = standardize_smiles(zwitterion)
+        assert result == standardize_smiles(neutral)
+
+    def test_simple_carboxylate_neutralized(self):
+        result = standardize_smiles("CC(=O)[O-]")
+        assert result == standardize_smiles("CC(=O)O")
+
+    # ── Tautomer canonicalization (TautomerEnumerator) ──────────────────────
+
+    def test_keto_enol_canonical(self):
+        # Keto and enol forms of acetone/propen-2-ol should give the same result
+        keto = "CC(C)=O"
+        enol = "OC(=C)C"
+        assert standardize_smiles(keto) == standardize_smiles(enol)
+
+    def test_different_tautomers_match(self):
+        # 2-pyridinone ↔ 2-hydroxypyridine — canonical tautomer is consistent
+        t1 = standardize_smiles("O=C1NC=CC=C1")  # 2-pyridinone (Kekulé)
+        t2 = standardize_smiles("Oc1ccccn1")     # 2-hydroxypyridine
+        # Both valid SMILES; after tautomer canonicalization they must be equal
+        assert t1 is not None
+        assert t2 is not None
+        assert t1 == t2
+
+    # ── Idempotency ─────────────────────────────────────────────────────────
+
+    def test_idempotent_on_clean_mol(self):
+        smi = "c1ccc(Cl)cc1"
+        first = standardize_smiles(smi)
+        second = standardize_smiles(first)
+        assert first == second
+
+    def test_idempotent_after_salt_strip(self):
+        smi = "CC(=O)[O-].[Na+]"
+        first = standardize_smiles(smi)
+        second = standardize_smiles(first)
+        assert first == second
+
+    # ── standardize_mol ─────────────────────────────────────────────────────
+
+    def test_mol_input_returns_mol(self):
+        from rdkit import Chem
+        mol = Chem.MolFromSmiles("c1ccccc1")
+        result = standardize_mol(mol)
+        assert result is not None
+        assert isinstance(result, Chem.Mol)
+
+    def test_mol_none_returns_none(self):
+        assert standardize_mol(None) is None
+
+    # ── Integration: standardize=True changes input SMILES ──────────────────
+
+    def test_preprocessing_standardizes_salt(self, default_cfg):
+        # Sodium benzoate should preprocess to benzoic acid
+        df = pl.DataFrame({
+            "smiles": ["c1ccccc1C(=O)[O-].[Na+]"],
+            "assay_name": ["test"],
+            "value": [1.0],
+        })
+        result = preprocess(df, default_cfg)
+        assert len(result) == 1
+        smi = result["canonical_smiles"][0]
+        from rdkit import Chem
+        mol = Chem.MolFromSmiles(smi)
+        # Na should have been stripped
+        assert all(a.GetAtomicNum() != 11 for a in mol.GetAtoms())
+
+    def test_preprocessing_standardize_false_keeps_raw(self):
+        # With standardize=False only basic canonicalization happens
+        df = pl.DataFrame({"smiles": ["C1=CC=CC=C1"]})
+        result = canonicalize_smiles_column(df, standardize=False)
+        assert len(result) == 1
+        assert result["smiles"][0] == "c1ccccc1"
 
 
 # ── Fragmentation tests ───────────────────────────────────────────────────────

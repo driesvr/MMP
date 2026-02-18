@@ -25,6 +25,7 @@ logger = logging.getLogger("mmp.run")
 
 def cmd_build(args: argparse.Namespace) -> int:
     import polars as pl
+    from tqdm import tqdm
     from mmp.config import load_config
     from mmp.preprocessing import preprocess
     from mmp.fragmentation import fragment_molecules
@@ -36,42 +37,58 @@ def cmd_build(args: argparse.Namespace) -> int:
     )
     from mmp import database as db
 
-    logger.info("Loading config from %s", args.config or "<defaults>")
-    cfg = load_config(args.config)
+    steps = tqdm(
+        ["config", "read", "preprocess", "fragment", "pairs",
+         "deltas", "transform_stats", "frag_influence", "write_db"],
+        desc="Pipeline",
+        unit="step",
+    )
 
-    logger.info("Reading input from %s", args.input)
+    steps.set_postfix_str("loading config")
+    cfg = load_config(args.config)
+    steps.update(1)
+
+    steps.set_postfix_str("reading CSV")
     df = pl.read_csv(args.input, infer_schema_length=10000)
     logger.info("Input: %d rows, columns: %s", len(df), df.columns)
+    steps.update(1)
 
-    logger.info("Preprocessing...")
+    steps.set_postfix_str("preprocessing")
     compounds = preprocess(df, cfg)
     logger.info("After preprocessing: %d (mol_id, assay, value) rows", len(compounds))
+    steps.update(1)
 
-    logger.info("Fragmenting molecules (n_workers=%d)...", cfg.global_config.n_workers)
+    steps.set_postfix_str("fragmenting")
     fragments = fragment_molecules(compounds, cfg.global_config)
     logger.info("Fragments generated: %d", len(fragments))
+    steps.update(1)
 
     if len(fragments) == 0:
+        steps.close()
         logger.error("No fragments generated — check your input data and config filters.")
         return 1
 
-    logger.info("Generating pairs...")
+    steps.set_postfix_str("generating pairs")
     pairs = generate_pairs(fragments)
     logger.info("Raw pairs: %d", len(pairs))
+    steps.update(1)
 
-    logger.info("Computing deltas...")
+    steps.set_postfix_str("computing deltas")
     pair_values = compute_pair_deltas(pairs, compounds)
     logger.info("Pair-value rows: %d", len(pair_values))
+    steps.update(1)
 
-    logger.info("Aggregating transform statistics...")
+    steps.set_postfix_str("transform stats")
     transform_stats = aggregate_transform_stats(pair_values, cfg)
     logger.info("Transform stats: %d rows", len(transform_stats))
+    steps.update(1)
 
-    logger.info("Aggregating fragment influence...")
+    steps.set_postfix_str("fragment influence")
     frag_influence = aggregate_fragment_influence(pair_values, cfg)
     logger.info("Fragment influence: %d rows", len(frag_influence))
+    steps.update(1)
 
-    logger.info("Writing database to %s...", args.output)
+    steps.set_postfix_str("writing database")
     con = db.create_database(args.output)
     db.write_compounds(con, compounds)
     db.write_assay_values(con, compounds)
@@ -80,7 +97,10 @@ def cmd_build(args: argparse.Namespace) -> int:
     db.write_transform_stats(con, transform_stats)
     db.write_fragment_influence(con, frag_influence)
     con.close()
+    steps.update(1)
 
+    steps.set_postfix_str("done")
+    steps.close()
     logger.info("Done. Database written to %s", args.output)
     return 0
 
@@ -143,6 +163,12 @@ def build_parser() -> argparse.ArgumentParser:
         prog="mmp",
         description="Matched Molecular Pairs analysis pipeline",
     )
+    parser.add_argument(
+        "--no-quiet-rdkit",
+        action="store_true",
+        default=False,
+        help="Show RDKit warnings (they are silenced by default)",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     # ── build ────────────────────────────────────────────────────────────────
@@ -182,6 +208,9 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    from mmp import silence_rdkit
+    silence_rdkit(not args.no_quiet_rdkit)
 
     if args.command == "build":
         return cmd_build(args)
