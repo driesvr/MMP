@@ -117,11 +117,15 @@ def query_molecule(
     """
     from rdkit import Chem
     from mmp.fragmentation import _fragment_batch
+    from mmp.standardization import standardize_mol
 
-    # ── Canonicalize and fragment query molecule ─────────────────────────────
+    # ── Standardize and canonicalize query molecule ──────────────────────────
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         raise ValueError(f"Invalid query SMILES: {smiles!r}")
+    mol = standardize_mol(mol)
+    if mol is None:
+        raise ValueError(f"Standardization failed for query SMILES: {smiles!r}")
     canon_smi = Chem.MolToSmiles(mol)
 
     # Assign a temporary mol_id = 0 for the query
@@ -203,6 +207,23 @@ def query_molecule(
                 seen.add(dedup_key)
 
                 product = _assemble_product(q_const, other_var)
+
+                # Use median as primary; fall back to mean only if median is absent
+                primary_delta = median_delta if median_delta is not None else mean_delta
+
+                # When reversing direction (delta_sign == -1), negate all stats
+                # and swap min↔max, q1↔q3 so intervals remain [low, high]
+                if delta_sign > 0:
+                    row_min = min_delta
+                    row_max = max_delta
+                    row_q1 = q1_delta
+                    row_q3 = q3_delta
+                else:
+                    row_min = -max_delta if max_delta is not None else None
+                    row_max = -min_delta if min_delta is not None else None
+                    row_q1 = -q3_delta if q3_delta is not None else None
+                    row_q3 = -q1_delta if q1_delta is not None else None
+
                 rows.append({
                     "query_variable": q_var,
                     "replacement": other_var,
@@ -210,19 +231,15 @@ def query_molecule(
                     "constant_context": q_const,
                     "product_smiles": product or "",
                     "assay_name": aname,
-                    "predicted_delta": mean_delta * delta_sign,
+                    "predicted_delta": primary_delta * delta_sign,
                     "confidence": pair_count,
                     "attach_atom_env": attach_env,
                     "std_delta": std_delta,
-                    "median_delta": (median_delta or 0.0) * delta_sign,
-                    "min_delta": (min_delta or 0.0) * delta_sign if delta_sign > 0
-                                 else (max_delta or 0.0) * delta_sign,
-                    "max_delta": (max_delta or 0.0) * delta_sign if delta_sign > 0
-                                 else (min_delta or 0.0) * delta_sign,
-                    "q1_delta": (q1_delta or 0.0) * delta_sign if delta_sign > 0
-                                else (q3_delta or 0.0) * delta_sign,
-                    "q3_delta": (q3_delta or 0.0) * delta_sign if delta_sign > 0
-                                else (q1_delta or 0.0) * delta_sign,
+                    "median_delta": median_delta * delta_sign if median_delta is not None else None,
+                    "min_delta": row_min,
+                    "max_delta": row_max,
+                    "q1_delta": row_q1,
+                    "q3_delta": row_q3,
                 })
     finally:
         con.close()

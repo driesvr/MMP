@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import math
 import os
 from pathlib import Path
 from typing import Any
@@ -346,9 +345,13 @@ async def run_query(request: Request, body: QueryRequest):
 
 def _canonicalize(smiles: str) -> str:
     from rdkit import Chem
+    from mmp.standardization import standardize_mol
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         raise HTTPException(400, f"Invalid SMILES: {smiles!r}")
+    mol = standardize_mol(mol)
+    if mol is None:
+        raise HTTPException(400, f"Standardization failed for SMILES: {smiles!r}")
     return Chem.MolToSmiles(mol)
 
 
@@ -387,7 +390,6 @@ def _map_proposals_to_vectors(
 
         # Build per-assay deltas
         assay_deltas = []
-        net_score = 0.0
         for row in assay_rows:
             aname = row["assay_name"]
             if aname not in direction_map:
@@ -395,23 +397,23 @@ def _map_proposals_to_vectors(
             delta = row["predicted_delta"]
             confidence = row["confidence"]
             direction = direction_map[aname]
-            direction_sign = 1.0 if direction == "increase" else -1.0
             is_favorable = (delta > 0) == (direction == "increase")
+            def _safe_round(v, n=4):
+                return round(v, n) if v is not None else None
+
             assay_deltas.append({
                 "assay_name": aname,
                 "predicted_delta": round(delta, 4),
                 "confidence": confidence,
                 "direction": direction,
                 "is_favorable": is_favorable,
-                "std_delta": round(row.get("std_delta") or 0.0, 4),
-                "median_delta": round(row.get("median_delta") or 0.0, 4),
-                "min_delta": round(row.get("min_delta") or 0.0, 4),
-                "max_delta": round(row.get("max_delta") or 0.0, 4),
-                "q1_delta": round(row.get("q1_delta") or 0.0, 4),
-                "q3_delta": round(row.get("q3_delta") or 0.0, 4),
+                "std_delta": _safe_round(row.get("std_delta")),
+                "median_delta": _safe_round(row.get("median_delta")),
+                "min_delta": _safe_round(row.get("min_delta")),
+                "max_delta": _safe_round(row.get("max_delta")),
+                "q1_delta": _safe_round(row.get("q1_delta")),
+                "q3_delta": _safe_round(row.get("q3_delta")),
             })
-            weight = math.log10(confidence + 1) if confidence > 0 else 0.1
-            net_score += delta * direction_sign * weight
 
         if not assay_deltas:
             continue
@@ -421,14 +423,10 @@ def _map_proposals_to_vectors(
             "product_smiles": product_smi,
             "constant_context": const_ctx,
             "assay_deltas": assay_deltas,
-            "net_score": round(net_score, 4),
         }
 
         proposals_by_vector.setdefault(vkey, []).append(proposal)
 
-    # Sort each vector's proposals by net_score descending
-    for vkey in proposals_by_vector:
-        proposals_by_vector[vkey].sort(key=lambda p: p["net_score"], reverse=True)
 
     return proposals_by_vector
 

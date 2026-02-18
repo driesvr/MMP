@@ -1069,7 +1069,7 @@ function renderProposalsTable(proposals) {
   html += `<th data-sort="replacement">Replacement${sortArrow}</th>`;
   html += '<th>Structure</th>';
   assayNames.forEach(name => {
-    html += `<th data-sort="${name}">${name}${sortArrow}<br><span style="font-size:9px;font-weight:400;text-transform:none;letter-spacing:0;opacity:0.6">mean [Q1, Q3]</span></th>`;
+    html += `<th data-sort="${name}">${name}${sortArrow}<br><span style="font-size:9px;font-weight:400;text-transform:none;letter-spacing:0;opacity:0.6">median [Q1, Q3]</span></th>`;
   });
   html += '</tr></thead><tbody>';
 
@@ -1180,8 +1180,6 @@ function sortTable(th, proposals, assayNames) {
     if (key === 'replacement') {
       va = a.p.replacement; vb = b.p.replacement;
       return asc ? va.localeCompare(vb) : vb.localeCompare(va);
-    } else if (key === 'net_score') {
-      va = a.p.net_score; vb = b.p.net_score;
     } else {
       const da = a.p.assay_deltas.find(d => d.assay_name === key);
       const db2 = b.p.assay_deltas.find(d => d.assay_name === key);
