@@ -156,13 +156,18 @@ def query_molecule(
             # Extract attachment atom type (e.g. "C_SP2") for filtering
             query_atom_type = _parse_attach_atom_type(attach_env)
 
-            # Filter: only include transforms observed at the same atom type
+            # Filter: only propose replacements observed at the same atom type.
+            # The replacement is the OTHER side of the transform (not q_var).
             attach_filter = ""
             if query_atom_type:
                 attach_filter = """
                     AND EXISTS (
                         SELECT 1 FROM fragments f
-                        WHERE f.variable_smi = ?
+                        WHERE f.variable_smi = CASE
+                                WHEN split_part(ts.transform_smirks, '>>', 1) = ?
+                                THEN split_part(ts.transform_smirks, '>>', 2)
+                                ELSE split_part(ts.transform_smirks, '>>', 1)
+                              END
                           AND f.attach_env LIKE ?
                     )
                 """
