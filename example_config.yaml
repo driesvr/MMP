@@ -1,0 +1,55 @@
+# ============================================================================
+# MMP Pipeline — Example Configuration
+# ============================================================================
+# Copy this file and adjust values for your dataset.
+# Every key shown below is optional; defaults are indicated in comments.
+#
+# Usage:
+#   python run.py build --input data.csv --config example_config.yaml --output mmp.duckdb
+
+# ── Global settings (apply to fragmentation & size filters) ─────────────────
+global:
+  max_heavy_atoms: 70             # Skip molecules with more heavy atoms than this (default: 70)
+  max_cuts: 1                     # Number of bond cuts: 1 = single-cut only, 2 = include double-cut (default: 2)
+  max_variable_heavy_atoms: 13    # Max heavy atoms in the variable (R-group) fragment (default: 13)
+  min_constant_heavy_atoms: 5     # Min heavy atoms in the constant (scaffold) fragment (default: 5)
+  variable_to_constant_ratio: 0.33  # Variable fragment must be < this fraction of the whole molecule (default: 0.33)
+  n_workers: -1                   # Parallel workers for fragmentation; -1 = all CPUs (default: -1)
+
+# ── Per-assay settings ──────────────────────────────────────────────────────
+# Each assay listed under "assays:" is matched by name against the
+# "assay_name" column in the input CSV.  Unlisted assays inherit from
+# "_default" (see below).
+assays:
+
+  # Fallback for any assay not explicitly configured
+  _default:
+    transform: none               # Value transform: none | log10 | neg_log10 | pIC50 (default: none)
+    qualifier_handling: strip      # How to handle ">", "<" prefixes: strip | drop (default: strip)
+    enantiomer_handling: mean      # Enantiomer dedup: keep | mean | keep_smallest | keep_largest (default: mean)
+    outlier_removal: none          # Outlier filter: none | iqr | zscore (default: none)
+    min_pairs: 3                   # Minimum pairs required to report statistics (default: 3)
+
+  # Example: aqueous solubility measured in µM
+  solubility:
+    transform: log10              # Log-transform raw µM values
+    qualifier_handling: strip     # Keep numeric part of ">100" etc.
+    enantiomer_handling: mean     # Average across stereo-isomers
+    outlier_removal: iqr          # Remove values outside 1.5 × IQR
+    min_pairs: 3
+
+  # Example: hERG IC50 in µM → convert to pIC50
+  hERG_IC50:
+    transform: pIC50              # pIC50 = 6 − log10(value_µM)
+    qualifier_handling: drop      # Discard rows with qualifier prefixes
+    enantiomer_handling: keep_largest
+    outlier_removal: none
+    min_pairs: 5
+
+  # Example: clearance assay — use neg_log10 so that lower clearance = higher score
+  microsomal_clearance:
+    transform: neg_log10
+    qualifier_handling: strip
+    enantiomer_handling: mean
+    outlier_removal: zscore       # Remove values > 3 standard deviations from mean
+    min_pairs: 3
